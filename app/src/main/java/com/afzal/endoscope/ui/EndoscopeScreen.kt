@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.displayCutoutPadding
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -35,7 +36,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Cameraswitch
 import androidx.compose.material.icons.rounded.Flip
@@ -69,6 +69,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -96,70 +97,21 @@ fun EndoscopeScreen(controller: EndoscopeController, onOpenMedia: () -> Unit) {
         if (message != null) snackbarHostState.showSnackbar(message.text)
     }
 
+    // The preview fills the whole screen, edge to edge. All controls float on top of it.
     BoxWithConstraints(
         Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface),
-    ) {
-        val landscape = maxWidth > maxHeight
-        if (landscape) {
-            Row(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
-                Viewfinder(
-                    controller,
-                    Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .padding(start = 12.dp, top = 12.dp, bottom = 12.dp),
-                )
-                CaptureControls(
-                    controller = controller,
-                    onOpenMedia = onOpenMedia,
-                    vertical = true,
-                    modifier = Modifier.fillMaxHeight().padding(horizontal = 16.dp),
-                )
-            }
-        } else {
-            Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
-                Viewfinder(
-                    controller,
-                    Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .padding(start = 12.dp, end = 12.dp, top = 8.dp),
-                )
-                CaptureControls(
-                    controller = controller,
-                    onOpenMedia = onOpenMedia,
-                    vertical = false,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
-                )
-            }
-        }
-        SnackbarHost(
-            snackbarHostState,
-            Modifier
-                .align(Alignment.TopCenter)
-                .statusBarsPadding()
-                .padding(top = 56.dp),
-        )
-    }
-}
-
-@Composable
-private fun Viewfinder(controller: EndoscopeController, modifier: Modifier) {
-    val flash = remember { Animatable(0f) }
-    LaunchedEffect(controller.shutterCount) {
-        if (controller.shutterCount > 0) {
-            flash.snapTo(0.7f)
-            flash.animateTo(0f, tween(300))
-        }
-    }
-
-    Box(
-        modifier
-            .clip(RoundedCornerShape(36.dp))
             .background(Color.Black),
     ) {
+        val landscape = maxWidth > maxHeight
+        val flash = remember { Animatable(0f) }
+        LaunchedEffect(controller.shutterCount) {
+            if (controller.shutterCount > 0) {
+                flash.snapTo(0.7f)
+                flash.animateTo(0f, tween(300))
+            }
+        }
+
         AndroidView(
             factory = { context -> PreviewView(context).also { controller.preview = it } },
             modifier = Modifier.fillMaxSize(),
@@ -194,17 +146,69 @@ private fun Viewfinder(controller: EndoscopeController, modifier: Modifier) {
             EmptyState(connected = controller.connected, message = controller.emptyMessage)
         }
 
-        StatusChips(controller, Modifier.align(Alignment.TopStart).padding(16.dp))
-
-        Column(
+        // Light scrim so the floating controls stay readable on bright images.
+        Box(
             Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            ZoomPill(controller)
-            ViewToolbar(controller)
+                .align(if (landscape) Alignment.CenterEnd else Alignment.BottomCenter)
+                .then(if (landscape) Modifier.fillMaxHeight().width(160.dp) else Modifier.fillMaxWidth().height(260.dp))
+                .background(
+                    if (landscape) {
+                        Brush.horizontalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.45f)))
+                    } else {
+                        Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.45f)))
+                    },
+                ),
+        )
+
+        Box(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().displayCutoutPadding()) {
+            StatusChips(controller, Modifier.align(Alignment.TopStart).padding(16.dp))
+
+            if (landscape) {
+                Column(
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 16.dp, end = 120.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    ZoomPill(controller)
+                    ViewToolbar(controller)
+                }
+                CaptureControls(
+                    controller = controller,
+                    onOpenMedia = onOpenMedia,
+                    vertical = true,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .fillMaxHeight()
+                        .padding(horizontal = 16.dp, vertical = 24.dp),
+                )
+            } else {
+                Column(
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    ZoomPill(controller)
+                    ViewToolbar(controller)
+                    CaptureControls(
+                        controller = controller,
+                        onOpenMedia = onOpenMedia,
+                        vertical = false,
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    )
+                }
+            }
+
+            SnackbarHost(
+                snackbarHostState,
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 56.dp),
+            )
         }
     }
 }
