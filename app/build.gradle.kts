@@ -46,7 +46,9 @@ kotlin {
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2025.10.00")
     implementation(composeBom)
-    implementation("androidx.compose.material3:material3")
+    // Expressive APIs are public only in 1.5 alphas; alpha18 is the newest that
+    // still builds with AGP 8.x and compileSdk 36.
+    implementation("androidx.compose.material3:material3:1.5.0-alpha18")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
