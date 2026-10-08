@@ -10,12 +10,16 @@ import java.util.concurrent.TimeUnit
  * Runs on its own thread so slow decoding never blocks USB reads; frames that arrive
  * while a decode is in progress are dropped.
  */
-class FrameProcessor(private val preview: PreviewView) : Thread("frame-processor") {
+class FrameProcessor : Thread("frame-processor") {
 
     private val queue = ArrayBlockingQueue<UppFrame>(1)
 
     @Volatile
     private var running = true
+
+    /** Where frames are drawn. Set once the preview surface view exists. */
+    @Volatile
+    var preview: PreviewView? = null
 
     @Volatile
     var transform = ViewTransform()
@@ -61,7 +65,7 @@ class FrameProcessor(private val preview: PreviewView) : Thread("frame-processor
             lastBitmap = bitmap
             lastJpeg = frame.jpeg
             val t = transform
-            preview.draw(bitmap, t)
+            preview?.draw(bitmap, t)
             recorder?.drawFrame(bitmap, t)
             countFps()
         }
